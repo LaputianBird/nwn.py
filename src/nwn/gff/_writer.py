@@ -97,9 +97,23 @@ def write(file: BinaryIO, root: Struct, file_type: str) -> None:
             field_data.extend(encoded)
 
         elif isinstance(value, CExoLocString):
-            field_data.extend(struct.pack("<I", 0))
+            # Build inner payload first
+            inner = bytearray()
+            for fid, text in value.entries.items():
+                encoded = text.encode(get_nwn_encoding())
+                inner.extend(struct.pack("<I", fid.to_id()))
+                inner.extend(struct.pack("<I", len(encoded)))
+                inner.extend(encoded)
+            totalsz = 8 + len(inner)  # 4 bytes strref + 4 bytes entry count + entry data
+
+            field_data.extend(struct.pack("<I", totalsz))
             field_data.extend(struct.pack("<I", value.strref))
             field_data.extend(struct.pack("<I", len(value.entries)))
+            field_data.extend(inner)
+
+            #field_data.extend(struct.pack("<I", 0))
+            #field_data.extend(struct.pack("<I", value.strref))
+            #field_data.extend(struct.pack("<I", len(value.entries)))
             for fid, text in value.entries.items():
                 encoded = text.encode(get_nwn_encoding())
                 field_data.extend(struct.pack("<I", fid.to_id()))
